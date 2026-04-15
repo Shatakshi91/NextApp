@@ -367,12 +367,6 @@ Switch themes via the palette button in the Navbar. Theme persists in `localStor
 
 ## 👤 Author
 
-**Jaydeep** — Built with ⚡ using the MERN Stack + Socket.io
+**Shatakshi** — Built with ⚡ using the MERN Stack + Socket.io
 
 ---
-
-## 📄 License
-
-MIT License
-#   a d v a n c e d - c h a t - a p p  
- 
