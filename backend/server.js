@@ -10,18 +10,27 @@ dotenv.config();
 const app    = express();
 const server = http.createServer(app);
 
-// ── Socket.io setup ───────────────────────────────────────────────────────────
+const isAllowedOrigin = (origin) => (
+  !origin ||
+  origin.endsWith('.vercel.app') ||
+  origin.endsWith('.onrender.com') ||
+  origin === process.env.CLIENT_URL ||
+  origin === 'http://localhost:5173'
+);
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (isAllowedOrigin(origin)) return cb(null, true);
+    return cb(new Error(`CORS blocked: ${origin}`));
+  },
+  credentials: true,
+};
+
+// Socket.io setup
 const io = new Server(server, {
   cors: {
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      if (origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com') ||
-          origin === process.env.CLIENT_URL || origin === 'http://localhost:5173')
-        return cb(null, true);
-      cb(new Error(`CORS blocked: ${origin}`));
-    },
+    ...corsOptions,
     methods: ['GET', 'POST'],
-    credentials: true,
   },
   pingTimeout: 60000,
 });
@@ -29,32 +38,23 @@ const io = new Server(server, {
 // Attach io to app so controllers can emit
 app.set('io', io);
 
-// ── Middleware ────────────────────────────────────────────────────────────────
+// Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    if (origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com') ||
-        origin === process.env.CLIENT_URL || origin === 'http://localhost:5173')
-      return cb(null, true);
-    cb(new Error(`CORS blocked: ${origin}`));
-  },
-  credentials: true,
-}));
+app.use(cors(corsOptions));
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// Routes
 app.use('/api/auth',     require('./routes/authRoutes'));
 app.use('/api/users',    require('./routes/userRoutes'));
 app.use('/api/messages', require('./routes/messageRoutes'));
 app.use('/api/groups',   require('./routes/groupRoutes'));
 
-app.get('/', (req, res) => res.json({ message: '⚡ NexChat API running' }));
+app.get('/', (req, res) => res.json({ message: 'NexChat API running' }));
 
-// ── Socket.io logic ───────────────────────────────────────────────────────────
+// Socket.io logic
 require('./socket/socketHandler')(io);
 
-// ── Error handler ─────────────────────────────────────────────────────────────
+// Error handler
 app.use((err, req, res, next) => {
   const status = res.statusCode === 200 ? 500 : res.statusCode;
   res.status(status).json({
@@ -64,13 +64,13 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ── DB + Start ────────────────────────────────────────────────────────────────
+// DB + Start
 mongoose.connect(process.env.MONGODB_URL)
   .then(() => {
-    console.log('✅ MongoDB connected');
+    console.log('MongoDB connected');
     const PORT = process.env.PORT || 5000;
-    server.listen(PORT, () => console.log(`🚀 NexChat server on port ${PORT}`));
+    server.listen(PORT, () => console.log(`NexChat server on port ${PORT}`));
   })
-  .catch(err => { console.error('❌ MongoDB error:', err.message); process.exit(1); });
+  .catch(err => { console.error('MongoDB error:', err.message); process.exit(1); });
 
 module.exports = { io };
