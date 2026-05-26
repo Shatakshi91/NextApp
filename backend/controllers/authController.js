@@ -90,6 +90,7 @@ const refreshToken = asyncHandler(async (req, res) => {
   // Rotate refresh token
   user.refreshTokens = user.refreshTokens.filter(t => t !== token);
   user.refreshTokens.push(newRefreshToken);
+  if (user.refreshTokens.length > 5) user.refreshTokens.shift();
   await user.save({ validateBeforeSave: false });
 
   res.json({ success: true, accessToken: newAccessToken, refreshToken: newRefreshToken });

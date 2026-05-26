@@ -39,17 +39,6 @@ module.exports = function socketHandler(io) {
       userGroups.forEach(g => socket.join(`group_${g._id}`));
     } catch (e) { /* ignore */ }
 
-    // ── DM send_message ────────────────────────────────────────────
-    socket.on('send_message', (data) => {
-      const sid = userSocketMap.get(data.receiverId);
-      if (sid) io.to(sid).emit('receive_message', { ...data, senderId: userId, createdAt: new Date() });
-    });
-
-    // ── Group message ──────────────────────────────────────────────
-    socket.on('send_group_message', (data) => {
-      io.to(`group_${data.groupId}`).emit('receive_group_message', data);
-    });
-
     // ── Group room join/leave ──────────────────────────────────────
     socket.on('join_group', (groupId) => socket.join(`group_${groupId}`));
     socket.on('leave_group', (groupId) => socket.leave(`group_${groupId}`));

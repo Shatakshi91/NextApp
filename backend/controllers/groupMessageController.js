@@ -12,13 +12,15 @@ const getGroupMessages = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 30;
   const skip  = (page - 1) * limit;
 
+  const visibleFilter = { groupId: req.params.groupId, deletedBy: { $ne: req.user._id } };
+
   const [messages, total] = await Promise.all([
-    GroupMessage.find({ groupId: req.params.groupId, deletedBy: { $ne: req.user._id } })
+    GroupMessage.find(visibleFilter)
       .populate('senderId', 'name profilePic')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
-    GroupMessage.countDocuments({ groupId: req.params.groupId }),
+    GroupMessage.countDocuments(visibleFilter),
   ]);
 
   res.json({ success: true, messages: messages.reverse(), page, hasMore: skip + messages.length < total, total });
@@ -65,6 +67,10 @@ const sendGroupMessage = asyncHandler(async (req, res) => {
 
 // PATCH /api/groups/:groupId/messages/read
 const markGroupMessagesRead = asyncHandler(async (req, res) => {
+  const group = await Group.findById(req.params.groupId);
+  if (!group) return res.status(404).json({ success: false, message: 'Group not found' });
+  if (!group.hasMember(req.user._id)) return res.status(403).json({ success: false, message: 'Not a member' });
+
   const userId = req.user._id;
   await GroupMessage.updateMany(
     { groupId: req.params.groupId, 'readBy.user': { $ne: userId } },
@@ -79,17 +85,23 @@ const deleteGroupMessage = asyncHandler(async (req, res) => {
   if (!message) return res.status(404).json({ success: false, message: 'Message not found' });
 
   const group    = await Group.findById(req.params.groupId);
+  if (!group) return res.status(404).json({ success: false, message: 'Group not found' });
   const member   = group?.getMember(req.user._id);
   const isAuthor = message.senderId.toString() === req.user._id.toString();
   const canDelete = isAuthor || ['admin','moderator'].includes(member?.role);
 
   if (!canDelete) return res.status(403).json({ success: false, message: 'Not authorised' });
 
-  message.deletedBy.push(req.user._id);
-  await message.save();
+  await GroupMessage.updateOne(
+    { _id: message._id },
+    { $addToSet: { deletedBy: req.user._id } }
+  );
 
   const io = req.app.get('io');
-  if (io) io.to(`group_${group._id}`).emit('group_message_deleted', { messageId: message._id });
+  if (io) io.to(`group_${group._id}`).emit('group_message_deleted', {
+    messageId: message._id,
+    groupId: group._id,
+  });
 
   res.json({ success: true });
 });

@@ -74,6 +74,8 @@
 
 ## 📁 Project Structure
 
+For a concise architecture breakdown and maintenance plan, see [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md).
+
 ```
 nexchat/
 ├── backend/
@@ -315,8 +317,6 @@ npm run dev        # → http://localhost:5173
 ### Client → Server
 | Event | Payload | Description |
 |-------|---------|-------------|
-| `send_message`         | `{ receiverId, text, image }` | Send DM |
-| `send_group_message`   | `{ groupId, text, image }`    | Send group msg |
 | `join_group`           | `groupId`                     | Join socket room |
 | `leave_group`          | `groupId`                     | Leave socket room |
 | `typing_start`         | `{ receiverId }`              | Start DM typing |

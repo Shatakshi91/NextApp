@@ -106,10 +106,6 @@ const useGroupStore = create((set, get) => ({
 
       get().updateGroupLastMessage(groupId, res.data.message)
 
-      // Emit via socket for real-time delivery to other group members
-      const socket = getSocket()
-      if (socket) socket.emit('send_group_message', res.data.message)
-
     } catch (err) {
       set(s => ({
         groupMessages: {
@@ -123,39 +119,45 @@ const useGroupStore = create((set, get) => ({
 
   // ── Receive group message (socket) ───────────────────────────────
   receiveGroupMessage: (message) => {
-  const { selectedGroup, unreadGroupCounts } = get()
-  const groupId = message.groupId
+    const { selectedGroup, unreadGroupCounts } = get()
+    const groupId = message.groupId
+    const senderId = typeof message.senderId === 'object' ? message.senderId?._id : message.senderId
+    const myUser = JSON.parse(localStorage.getItem('nexchat_user') || '{}')
 
-  set(s => {
-    const existing = s.groupMessages[groupId] || []
+    set(s => {
+      const existing = s.groupMessages[groupId] || []
+      if (existing.some(m => m._id === message._id)) return s
 
-    // ✅ prevent duplicate (same _id)
-    const alreadyExists = existing.some(m => m._id === message._id)
+      const pendingIndex = existing.findIndex(m =>
+        m.pending &&
+        senderId === myUser._id &&
+        m.text === message.text &&
+        Boolean(m.image) === Boolean(message.image)
+      )
 
-    // ✅ also handle optimistic replacement case
-    const withoutTemp = existing.filter(m => !m.pending)
+      const nextMessages = pendingIndex >= 0
+        ? existing.map((m, i) => i === pendingIndex ? message : m)
+        : [...existing, message]
 
-    if (alreadyExists) return s
-
-    return {
-      groupMessages: {
-        ...s.groupMessages,
-        [groupId]: [...withoutTemp, message],
-      },
-    }
-  })
-
-  if (selectedGroup?._id !== groupId) {
-    set({
-      unreadGroupCounts: {
-        ...unreadGroupCounts,
-        [groupId]: (unreadGroupCounts[groupId] || 0) + 1,
-      },
+      return {
+        groupMessages: {
+          ...s.groupMessages,
+          [groupId]: nextMessages,
+        },
+      }
     })
-  }
 
-  get().updateGroupLastMessage(groupId, message)
-},
+    if (selectedGroup?._id !== groupId) {
+      set({
+        unreadGroupCounts: {
+          ...unreadGroupCounts,
+          [groupId]: (unreadGroupCounts[groupId] || 0) + 1,
+        },
+      })
+    }
+
+    get().updateGroupLastMessage(groupId, message)
+  },
 
 
   updateGroupLastMessage: (groupId, message) => {

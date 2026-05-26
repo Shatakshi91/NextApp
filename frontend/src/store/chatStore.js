@@ -92,10 +92,6 @@ const useChatStore = create((set, get) => ({
         messages: s.messages.map(m => m._id === tempId ? res.data.message : m),
       }))
 
-      // Also emit via socket for real-time
-      const socket = getSocket()
-      if (socket) socket.emit('send_message', res.data.message)
-
     } catch (err) {
       // Remove optimistic, show error
       set(s => ({ messages: s.messages.filter(m => m._id !== tempId) }))
@@ -106,6 +102,8 @@ const useChatStore = create((set, get) => ({
   // ── Receive a message (from socket) ─────────────────────────────
   receiveMessage: (message) => {
     const { selectedUser, unreadCounts } = get()
+
+    if (get().messages.some(m => m._id === message._id)) return
 
     if (selectedUser && (
       message.senderId === selectedUser._id ||
