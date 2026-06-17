@@ -55,10 +55,10 @@ module.exports = function socketHandler(io) {
 
     // ── Group typing ───────────────────────────────────────────────
     socket.on('group_typing_start', ({ groupId }) => {
-      socket.to(`group_${groupId}`).emit('group_user_typing', { senderId: userId, name: socket.user.name });
+      socket.to(`group_${groupId}`).emit('group_user_typing', { groupId, senderId: userId, name: socket.user.name });
     });
     socket.on('group_typing_stop', ({ groupId }) => {
-      socket.to(`group_${groupId}`).emit('group_user_stop_typing', { senderId: userId });
+      socket.to(`group_${groupId}`).emit('group_user_stop_typing', { groupId, senderId: userId });
     });
 
     // ── Seen ───────────────────────────────────────────────────────
