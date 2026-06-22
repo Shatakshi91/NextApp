@@ -5,6 +5,13 @@ import useChatStore  from '../../store/chatStore'
 import useGroupStore from '../../store/groupStore'
 import { FiX, FiCamera, FiCheck } from 'react-icons/fi'
 
+const getInviteCode = (value) => {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const parts = trimmed.split('/').filter(Boolean)
+  return parts[parts.length - 1]
+}
+
 export function CreateGroupModal({ onClose }) {
   const { users }        = useChatStore()
   const { createGroup }  = useGroupStore()
@@ -149,9 +156,10 @@ export function JoinGroupModal({ onClose }) {
   const { joinViaInvite }     = useGroupStore()
 
   const handleJoin = async () => {
-    if (!code.trim()) return
+    const inviteCode = getInviteCode(code)
+    if (!inviteCode) return
     setJoining(true)
-    const res = await joinViaInvite(code.trim())
+    const res = await joinViaInvite(inviteCode)
     if (res.success) onClose()
     setJoining(false)
   }

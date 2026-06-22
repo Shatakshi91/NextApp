@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import useAuthStore from '../store/authStore'
 import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiZap } from 'react-icons/fi'
@@ -9,11 +9,13 @@ export default function RegisterPage() {
   const [showPw, setShowPw] = useState(false)
   const { register, loading } = useAuthStore()
   const navigate              = useNavigate()
+  const location              = useLocation()
+  const redirectTo            = location.state?.from || '/'
 
   const submit = async (e) => {
     e.preventDefault()
     const res = await register(form)
-    if (res.success) navigate('/')
+    if (res.success) navigate(redirectTo, { replace: true })
   }
 
   const fields = [
@@ -95,6 +97,7 @@ export default function RegisterPage() {
           <div className="mt-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
             Already have an account?{' '}
             <Link to="/login"
+              state={{ from: redirectTo }}
               className="font-semibold transition-colors hover:opacity-80"
               style={{ color: 'var(--accent-1)' }}>
               Sign in

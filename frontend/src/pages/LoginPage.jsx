@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import useAuthStore from '../store/authStore'
 import { FiMail, FiLock, FiEye, FiEyeOff, FiZap } from 'react-icons/fi'
@@ -9,11 +9,13 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false)
   const { login, loading }  = useAuthStore()
   const navigate            = useNavigate()
+  const location            = useLocation()
+  const redirectTo          = location.state?.from || '/'
 
   const submit = async (e) => {
     e.preventDefault()
     const res = await login(form)
-    if (res.success) navigate('/')
+    if (res.success) navigate(redirectTo, { replace: true })
   }
 
   return (
@@ -107,6 +109,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
             Don't have an account?{' '}
             <Link to="/register"
+              state={{ from: redirectTo }}
               className="font-semibold transition-colors hover:opacity-80"
               style={{ color: 'var(--accent-1)' }}>
               Create one
