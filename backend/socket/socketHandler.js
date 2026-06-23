@@ -2,11 +2,32 @@ const User  = require('../models/User');
 const Group = require('../models/Group');
 const { verifyAccessToken } = require('../utils/jwt');
 
-// userId → socketId map
+// userId -> socketIds map. A user can be connected from multiple tabs/devices.
 const userSocketMap = new Map();
 
-const getSocketId    = (userId) => userSocketMap.get(userId);
-const getOnlineUsers = ()       => Array.from(userSocketMap.keys());
+const getSocketIds = (userId) => Array.from(userSocketMap.get(userId) || []);
+const getSocketId = (userId) => getSocketIds(userId)[0];
+const getOnlineUsers = () => Array.from(userSocketMap.keys());
+
+const addUserSocket = (userId, socketId) => {
+  const socketIds = userSocketMap.get(userId) || new Set();
+  socketIds.add(socketId);
+  userSocketMap.set(userId, socketIds);
+  return socketIds.size;
+};
+
+const removeUserSocket = (userId, socketId) => {
+  const socketIds = userSocketMap.get(userId);
+  if (!socketIds) return 0;
+
+  socketIds.delete(socketId);
+  if (socketIds.size === 0) {
+    userSocketMap.delete(userId);
+    return 0;
+  }
+
+  return socketIds.size;
+};
 
 module.exports = function socketHandler(io) {
 
@@ -29,8 +50,10 @@ module.exports = function socketHandler(io) {
     const userId = socket.user._id.toString();
     console.log(`✅ Connected: ${socket.user.name} [${socket.id}]`);
 
-    userSocketMap.set(userId, socket.id);
-    await User.findByIdAndUpdate(userId, { isOnline: true });
+    const connectionCount = addUserSocket(userId, socket.id);
+    if (connectionCount === 1) {
+      await User.findByIdAndUpdate(userId, { isOnline: true });
+    }
     io.emit('online_users', getOnlineUsers());
 
     // Auto-join all group rooms
@@ -45,12 +68,12 @@ module.exports = function socketHandler(io) {
 
     // ── DM typing ─────────────────────────────────────────────────
     socket.on('typing_start', ({ receiverId }) => {
-      const sid = userSocketMap.get(receiverId);
-      if (sid) io.to(sid).emit('user_typing', { senderId: userId });
+      const socketIds = getSocketIds(receiverId);
+      if (socketIds.length) io.to(socketIds).emit('user_typing', { senderId: userId });
     });
     socket.on('typing_stop', ({ receiverId }) => {
-      const sid = userSocketMap.get(receiverId);
-      if (sid) io.to(sid).emit('user_stop_typing', { senderId: userId });
+      const socketIds = getSocketIds(receiverId);
+      if (socketIds.length) io.to(socketIds).emit('user_stop_typing', { senderId: userId });
     });
 
     // ── Group typing ───────────────────────────────────────────────
@@ -63,20 +86,27 @@ module.exports = function socketHandler(io) {
 
     // ── Seen ───────────────────────────────────────────────────────
     socket.on('mark_seen', ({ senderId }) => {
-      const sid = userSocketMap.get(senderId);
-      if (sid) io.to(sid).emit('messages_seen', { by: userId });
+      const socketIds = getSocketIds(senderId);
+      if (socketIds.length) io.to(socketIds).emit('messages_seen', { by: userId });
     });
 
     // ── Disconnect ─────────────────────────────────────────────────
     socket.on('disconnect', async () => {
       console.log(`❌ Disconnected: ${socket.user.name}`);
-      userSocketMap.delete(userId);
-      await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
+      const remainingConnections = removeUserSocket(userId, socket.id);
+      if (remainingConnections > 0) {
+        io.emit('online_users', getOnlineUsers());
+        return;
+      }
+
+      const lastSeen = new Date();
+      await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen });
       io.emit('online_users', getOnlineUsers());
-      io.emit('user_offline', { userId, lastSeen: new Date() });
+      io.emit('user_offline', { userId, lastSeen });
     });
   });
 };
 
 module.exports.getSocketId    = getSocketId;
+module.exports.getSocketIds   = getSocketIds;
 module.exports.getOnlineUsers = getOnlineUsers;
