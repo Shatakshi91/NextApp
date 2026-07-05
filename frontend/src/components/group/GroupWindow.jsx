@@ -28,9 +28,21 @@ export default function GroupWindow() {
       loadMoreGroupMessages()
   }, [inView])
 
+  const lastMsgIdRef = useRef(null)
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length])
+    if (messages.length === 0) {
+      lastMsgIdRef.current = null
+      return
+    }
+    const latestMsg = messages[messages.length - 1]
+    const latestMsgId = latestMsg?._id
+
+    if (latestMsgId !== lastMsgIdRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      lastMsgIdRef.current = latestMsgId
+    }
+  }, [messages])
 
   if (!selectedGroup) return null
 

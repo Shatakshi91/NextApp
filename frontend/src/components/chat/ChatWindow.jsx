@@ -24,9 +24,21 @@ export default function ChatWindow() {
     if (inView && hasMore && !loadingMessages) loadMoreMessages()
   }, [inView])
 
+  const lastMsgIdRef = useRef(null)
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messages.length === 0) {
+      lastMsgIdRef.current = null
+      return
+    }
+    const latestMsg = messages[messages.length - 1]
+    const latestMsgId = latestMsg?._id
+
+    if (latestMsgId !== lastMsgIdRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      lastMsgIdRef.current = latestMsgId
+    }
   }, [messages])
 
   const isTyping = typingUsers[selectedUser?._id]

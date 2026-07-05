@@ -54,10 +54,39 @@ export default function MessageInput({ type = 'dm' }) {
       setText('')
       clearImage()
       setShowEmoji(false)
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto'
+      }
     } finally {
       setSending(false)
       inputRef.current?.focus()
     }
+  }
+
+  const handleTextChange = (e) => {
+    setText(e.target.value)
+    onType()
+
+    // Auto-adjust height
+    const textarea = inputRef.current
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = `${textarea.scrollHeight}px`
+    }
+  }
+
+  const handleEmojiClick = (e) => {
+    setText(t => {
+      const nextText = t + e.emoji
+      setTimeout(() => {
+        const textarea = inputRef.current
+        if (textarea) {
+          textarea.style.height = 'auto'
+          textarea.style.height = `${textarea.scrollHeight}px`
+        }
+      }, 0)
+      return nextText
+    })
   }
 
   const handleKeyDown = (e) => {
@@ -84,7 +113,7 @@ export default function MessageInput({ type = 'dm' }) {
               className="absolute bottom-16 left-4 z-30"
             >
               <EmojiPicker
-                onEmojiClick={(e) => setText(t => t + e.emoji)}
+                onEmojiClick={handleEmojiClick}
                 theme="dark"
                 skinTonesDisabled
                 searchDisabled={false}
@@ -142,7 +171,7 @@ export default function MessageInput({ type = 'dm' }) {
           className="input-field flex-1 resize-none py-2.5 max-h-32 overflow-y-auto"
           placeholder="Type a message…"
           value={text}
-          onChange={e => { setText(e.target.value); onType() }}
+          onChange={handleTextChange}
           onKeyDown={handleKeyDown}
           style={{ lineHeight: '1.5' }}
         />
